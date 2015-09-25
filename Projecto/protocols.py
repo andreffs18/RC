@@ -3,7 +3,6 @@
 import os
 from socket import *
 
-
 # buffer size is equal to 1024mb*5 = 5mb
 BUFFERSIZE = int(os.environ.get('BUFFERSIZE', 5120))
 

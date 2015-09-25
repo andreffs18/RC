@@ -1,6 +1,6 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
-
+import sys
 
 class Logger(object):
     '''
@@ -29,7 +29,6 @@ class Logger(object):
         if self._warning:
             print("[WARNING]: {}".format(msg))
 
-
 def handle_args(arguments):
     '''
     makes all verification to user arguments and returns
@@ -37,6 +36,8 @@ def handle_args(arguments):
     '''
     # format of command is ./user [-n ECPname] [-p ECPport]
     # only (size) 5 arguments is allowed
+    log = Logger()
+
     if len(arguments) > 5:
         log.error("Too many arguments.\nUse ./user [-n ECPname] [-p ECPport]")
         sys.exit()
@@ -44,10 +45,11 @@ def handle_args(arguments):
     dictionary = {}
     # try to get name from arguments
     if "-n" in arguments:
-        dictionary['-n'] = args[2]
+        dictionary['-n'] = arguments[2]
 
     # try to get port from arguments
     if "-p" in arguments:
-        dictionary['-p'] = args[4]
+        dictionary['-p'] = arguments[4]
 
     return dictionary
+

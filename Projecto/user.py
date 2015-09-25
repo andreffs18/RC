@@ -4,7 +4,7 @@
 import sys, os
 from protocols import UDP, TCP
 from utils import Logger, handle_args
-log = Logger(debug=False)
+log = Logger(debug=True)
 
 # Default port of the ECP server
 DEFAULT_ECPport = 58054
@@ -50,13 +50,13 @@ def _request(ecpname, ecpport, topic_num):
     message = 'TER {}\n'.format(topic_num)
     # data = udp.request(message)
     data = udp.fake_request(message, 'AWTES 192.168.0.1 12345\n')
+
     TESip, TESport = None, None
     # 2' handling response from request to ECP server
     # 2.1' error (EOF) - there is no topics available
     if data.startswith('EOF'):
         log.debug("EOF occur from UDP request to ECP.")
         log.error("EOF - Invalid topic number. Please try again with diferent topic number.")
-
     # 2.2' error (ERR) - something unexpected happen
     elif data.startswith('ERR'):
         log.debug("ERR occur from UDP request to ECP.")
@@ -70,10 +70,11 @@ def _request(ecpname, ecpport, topic_num):
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        SID = "ist175455"
+        SID = "ist175455"  # COMO É QUE SABEMOS ISTO??
         message = 'RQT {}\n'.format(SID)
         # data = tcp.request(message)
-        data = tcp.fake_request(message, 'AQT 75455 09JAN2015_20:00:00 1024 trolololololo')
+        data = tcp.fake_request(message, 'AQT ist175455 09JAN2015_20:00:00 1024 trololololololololololololololololololololo')
+
         # 2' handling response from request to TES server
         # 2.1' error (ERR) - something unexpected happen
         if data.startswith('ERR'):
@@ -83,7 +84,7 @@ def _request(ecpname, ecpport, topic_num):
         else:
             log.debug("No errors connecting to TES with TCP Protocol")
             data = data.split(" ")
-            qid, time, size, data = data[1:]
+            qid, time, size, data = data[1:] # Nao sei o que fazer com esta informacao
 
         log.debug("User command REQUEST complete.")
 
@@ -94,6 +95,7 @@ def _submit(tesip, tesport, answers):
     # 1' send "RQS SID QID V1 V2 V3 V4 V5\n" to TES server
     tcp = TCP(tesip, tesport)
     SID, QID = 'ist175455', 'codeforpdffile'
+
     message = ['RQS', SID, QID]
     message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
     message = '{}\n'.format(' '.join(message))
@@ -115,15 +117,17 @@ def _submit(tesip, tesport, answers):
     else:
         log.debug("No errors connecting to TES with TCP Protocol")
         data = data.split(" ")
-        print("Score {}%".format(data[2]))
+        print("Score {}%".format(data[2].replace("\n", "")))
 
 if __name__ == "__main__":
     log.debug("Starting client...")
 
     # handling arguments
     args = handle_args(sys.argv)
+
     ECPname = args.get('-n', DEFAULT_ECPname)
     ECPport = args.get('-p', DEFAULT_ECPport)
+
     TESip, TESport = None, None
 
     log.debug("Using ECPname = {} and ECPport = {}".format(ECPname, ECPport))
@@ -133,7 +137,7 @@ if __name__ == "__main__":
         # waits for client input:
         input_data = raw_input()
         # handle which command should run
-        if 'list' == input_data:
+        if input_data == 'list':
             # list - chama o ECP com UDP as protocol. pede a lista de topicos
             log.debug("Requesting list of topics to ECP server.")
             _list(ECPname, ECPport)
@@ -147,7 +151,7 @@ if __name__ == "__main__":
         elif input_data.startswith('submit'):
             # submit <answers_sequece> - TCP Tes resposta
             log.debug("Submiting answers to TES server.")
-            answers = input_data.replace('submit', '').strip().split()
+            answers = filter(None, input_data.replace('submit', '').strip().split(" "))
 
             if TESip and TESport:
                 _submit(TESip, TESport, answers)
@@ -155,10 +159,11 @@ if __name__ == "__main__":
                 log.debug("No TESip or TESport.")
                 log.error("No TESip or TESport. Request first a topic and then submit your answers.")
 
-        elif 'exit' == input_data:
+        elif input_data == 'exit':
             # exit - exit
             log.debug("Exiting user application.")
             break
+
         else:
-            if input_data != '' or input_data.isspace():
+            if input_data.strip() != '':
                 log.warning("\"{}\" command does not exist.".format(input_data))
