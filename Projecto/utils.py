@@ -53,3 +53,22 @@ def handle_args(arguments):
 
     return dictionary
 
+def handle_args_ecp(arguments):
+    '''
+    makes all verification to user arguments and returns
+    a dictionary with all args
+    '''
+    # format of command is ./ecp [-p ECPport]
+    # only (size) 3 arguments is allowed
+
+    if len(arguments) > 3:
+        log.error("Too many arguments.\nUse ./ecp [-p ECPport]")
+        sys.exit()
+
+    dictionary = {}
+    # try to get port from arguments
+    if "-p" in arguments:
+        dictionary['-p'] = arguments[2]
+
+    return dictionary
+
