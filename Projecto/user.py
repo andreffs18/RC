@@ -67,13 +67,16 @@ def _request(ecpname, ecpport, topic_num):
         data = data.split(" ")
         TESip, TESport = data[1:]
 
+    # GANDA HACK
+    TESip = 'localhost'
+    TESport = 59000
+
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
         SID = "ist175455"  # COMO É QUE SABEMOS ISTO??
         message = 'RQT {}\n'.format(SID)
-        # data = tcp.request(message)
-        data = tcp.fake_request(message, 'AQT ist175455 09JAN2015_20:00:00 1024 trololololololololololololololololololololo')
+        data = tcp.request(message)
 
         # 2' handling response from request to TES server
         # 2.1' error (ERR) - something unexpected happen
@@ -99,8 +102,8 @@ def _submit(tesip, tesport, answers):
     message = ['RQS', SID, QID]
     message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
     message = '{}\n'.format(' '.join(message))
-    # data = udp.request(message)
-    data = tcp.fake_request(message, 'AQS ist175455 100\n')
+    data = tcp.request(message)
+    # data = tcp.fake_request(message, 'AQS ist175455 100\n')
 
     # 2' handling response from request to TES server
     # 2.1' error (ERR) - something unexpected happen
