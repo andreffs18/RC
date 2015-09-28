@@ -9,6 +9,7 @@ log = Logger(debug=True)
 # Default port of the ECP server
 DEFAULT_ECPport = 58054
 
+DEFAULT_ECPname = 'localhost'
 
 
 
@@ -23,7 +24,8 @@ if __name__ == "__main__":
     ECPport = args.get('-p', DEFAULT_ECPport)
 
     log.debug("Iniciou {}".format(ECPport))
-	
+    udp = UDP(DEFAULT_ECPname, DEFAULT_ECPport)
+	udp.start()
 	#Create socket
     try:
     	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
