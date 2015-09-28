@@ -1,58 +1,97 @@
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 import os
+import uuid
+import settings
 import datetime as date
 from socket import *
 from utils import Logger
-log = Logger(debug=True)
 
-# buffer size is equal to 1024mb*5 = 5mb
-BUFFERSIZE = int(os.environ.get('BUFFERSIZE', 5120))
-
-
-def get_correct_answers():
-    # vai ao ficheiro buscar as respostas correctas
-    return ["A", "C", "D", "D", "A"]
-
+log = Logger(debug=settings.DEBUG)
 
 def _protocol_RQS(data):
-    # expecting data -> SID QID V1 V2 V3 V4 V5
-    # get sid and qid from data
-    SID, QID = data[:2]
-    # parse answers
-    student_answers = data[2:]
-    correct_answers = get_correct_answers()
+    '''
+    Following the submit instruction by the student, we send
+    the score and save the data from this student for stats
+    '''
 
-    score = 0
-    for s_ans, c_ans in zip(student_answers, correct_answers):
-        if s_ans == c_ans:
-            score += 20
+    def _get_correct_answers(quiz_name):
+        # TODO
+        # go to quiz_name file and get correct answeres
+        # quiz = open(quiz_name + "c_ans.pdf", "r")
+        # data = quiz.read()
+        # data = data.split(" ").rstrip()
+        # return data
+        return ["A", "C", "D", "D", "A"]
 
-    return "AQS {} {}".format(QID, score)
-    # return "AQS QID 10000"
-    # return '-1' # caso ja tenha passado o deadline
-    # return "ERR"
+    def _get_deadline(quiz_name):
+        # TODO
+        # go to quiz_name file and get deadline
+        # still don't know
+        return datetime.datetime.strptime("09JAN2015_20:00:00", "%d%b%Y_%H:%M:%S")
+
+    try:
+        # get sid and qid from data
+        SID, QID = data[:2]
+        # student answers to compare with correct answers
+        student_answers = data[2:]
+        correct_answers = get_correct_answers(QID)
+
+        # compute score
+        score = 0
+        for s_ans, c_ans in zip(student_answers, correct_answers):
+            if s_ans == c_ans:
+                score += 20
+
+        # check deadline
+        now = date.datetime.now() # TODO
+        deadline = _get_deadline()
+        if deadline < now:
+            return "-1"
+
+        return "AQS {} {}".format(QID, score)
+    except:
+        log.error("There was a problem submiting quiz to student.")
+        return "ERR"
+
 
 def _protocol_RQT(data):
-    # expecting data = SID
-    SID = data[0]
+    '''
+    Student requests the TES to send one of the avaiable
+    questionnaires on the selected topic. The student ID
+    is provided.
+    '''
 
-    QID = "asgidyua89u13289e123"
-    time = date.datetime.now().strftime("%d%b%Y_%H:%M:%S").upper()
-    # QUAL A HORA QUE TEMOS DE DAR?
-    size = len(quiz)
-    quiz = "ficehiro bue giro com coisas aqui dentro#"
+    def _get_quiz(quiz_number):
+        # open file and return data form that quiz_file
+        # fich = open('quiz_number.pdf', "r")
+        # return = fich.read()
+        return "DUMMY TEXT FOR NOW"  # TODO FIX ME
 
-    return "AQT {} {} {} {}".format(QID, time, size, quiz)
-    # return data = AQT QID time size data
-    # return data ? ERR
+    try:
+        quiz_number = 1  # ??????
+        # get student ID
+        SID = data[0]
+        # get quiz file data
+        quiz = _get_quiz(quiz_number)
+        # generate random QID for this transaction # TODO
+        QID = uuid.uuid4().hex[:10] + SID
+        # generate deadline which will be in an hour
+        time = date.datetime.now().strftime("%d%b%Y_%H:%M:%S").upper() # TODO ^
+        # size of the quiz
+        size = len(quiz)
+        return "AQT {} {} {} {}".format(QID, time, size, quiz)
+    except:
+        log.error("There was a problem returning quiz to student.")
+        return "ERR"
 
 
-def handle_server_data(data):
+def handle_tcp_server_data(data):
     # removes \n from string
     data = data[:-1]
+    # split data into chunks
     data = data.split(" ")
-
+    # get protocol and rest of the data
     protocol = data[0]
     data = data[1:]
 
@@ -67,11 +106,12 @@ def handle_server_data(data):
     data += "\n"
     return data
 
+
 class TCP(object):
     '''
     Class to wrap all TCP interactions between client and server
     '''
-    def __init__(self, host, port, buffer_size=BUFFERSIZE, max_connections=1):
+    def __init__(self, host, port, buffer_size=settings.BUFFERSIZE, max_connections=1):
         self.host = host
         self.port = int(port)
         self.buffer_size = buffer_size
@@ -85,9 +125,6 @@ class TCP(object):
             return message[:-1]
         return message
 
-    def fake_request(self, input, output):
-        return output
-
     def request(self, data):
         '''
             makes tcp socket connection to host and port machine
@@ -95,11 +132,13 @@ class TCP(object):
         '''
         sock = socket(AF_INET, SOCK_STREAM)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        addr = (self.host, self.port)
-        sock.connect(addr)
+        sock.connect((self.host, self.port))
         try:
+            log.debug("[TCP] Sending request to {}:{} > \"{}\"".format(self.host, self.port, self._remove_new_line(data)))
+            # sock.send(data)
             sock.sendall(data)
             data = sock.recv(self.buffer_size)
+            log.debug("[TCP] Got back > \"{}\"".format(self._remove_new_line(data)))
         finally:
             sock.close()
 
@@ -125,9 +164,9 @@ class TCP(object):
                     data = connection.recv(self.buffer_size)
 
                     if data:
-                        log.debug("Request from {}:{} > \"{}\"".format(addr_ip, addr_port, data[:-1]))
-
-                        data = handle_server_data(data)
+                        log.debug("Got request from {}:{} > \"{}\"".format(addr_ip, addr_port, data[:-1]))
+                        data = handle_tcp_server_data(data)
+                        log.debug("Sending back > \"{}\"".format(data[:-1]))
                         connection.sendall(data)
                     else:
                         break
@@ -139,7 +178,7 @@ class UDP(object):
     '''
     Class to wrap all UDP interactions between client and server
     '''
-    def __init__(self, host, port, buffer_size=BUFFERSIZE):
+    def __init__(self, host, port, buffer_size=settings.BUFFERSIZE):
         self.host = host
         self.port = int(port)
         self.buffer_size = buffer_size
@@ -164,9 +203,10 @@ class UDP(object):
         sock = socket(AF_INET, SOCK_DGRAM)
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         try:
-            addr = (self.host, self.port)
-            sock.sendto(data, addr)
+            log.debug("[UDP] Sending request to {}:{} > \"{}\"".format(self.host, self.port, self._remove_new_line(data)))
+            sock.sendto(data, (self.host, self.port))
             data = sock.recv(self.buffer_size)
+            log.debug("[UDP] Got back > \"{}\"".format(self._remove_new_line(data)))
         finally:
             sock.close()
 

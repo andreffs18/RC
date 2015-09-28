@@ -1,15 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys, os
+import os
+import sys
+import settings
 from protocols import UDP, TCP
 from utils import Logger, handle_args
-log = Logger(debug=True)
-
-# Default port of the ECP server
-DEFAULT_ECPport = 58054
-# Default name of the ECP server
-DEFAULT_ECPname = 'lima'
+log = Logger(debug=settings.DEBUG)
 
 
 def _list(ecpname, ecpport):
@@ -46,6 +43,7 @@ def _list(ecpname, ecpport):
 
 def _request(ecpname, ecpport, topic_num):
     # 1' send "TER Tnn\n" to ECP server
+    # validar quando nao metemos o nunmero!!
     udp = UDP(ecpname, ecpport)
     message = 'TER {}\n'.format(topic_num)
     # data = udp.request(message)
@@ -74,7 +72,7 @@ def _request(ecpname, ecpport, topic_num):
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        SID = "ist175455"  # COMO É QUE SABEMOS ISTO??
+        SID = "75455"  # COMO É QUE SABEMOS ISTO??
         message = 'RQT {}\n'.format(SID)
         data = tcp.request(message)
 
@@ -85,9 +83,11 @@ def _request(ecpname, ecpport, topic_num):
             log.error("ERR - There was na error connection to TES server. Try again later.")
         # 2.2' returns message
         else:
+            # validar bem esta popo se naot iver data beka beka
             log.debug("No errors connecting to TES with TCP Protocol")
             data = data.split(" ")
-            qid, time, size, data = data[1:] # Nao sei o que fazer com esta informacao
+            qid, time, size = data[1:4]
+            data = " ".join(data[4:]) # Nao sei o que fazer com esta informacao
 
         log.debug("User command REQUEST complete.")
 
@@ -97,7 +97,7 @@ def _request(ecpname, ecpport, topic_num):
 def _submit(tesip, tesport, answers):
     # 1' send "RQS SID QID V1 V2 V3 V4 V5\n" to TES server
     tcp = TCP(tesip, tesport)
-    SID, QID = 'ist175455', 'codeforpdffile'
+    SID, QID = '75455', 'codeforpdffile'
 
     message = ['RQS', SID, QID]
     message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
@@ -120,7 +120,7 @@ def _submit(tesip, tesport, answers):
     else:
         log.debug("No errors connecting to TES with TCP Protocol")
         data = data.split(" ")
-        print("Score {}%".format(data[2].replace("\n", "")))
+        print("Obtained Score {}%".format(data[2]))
 
 if __name__ == "__main__":
     log.debug("Starting client...")
@@ -128,8 +128,8 @@ if __name__ == "__main__":
     # handling arguments
     args = handle_args(sys.argv)
 
-    ECPname = args.get('-n', DEFAULT_ECPname)
-    ECPport = args.get('-p', DEFAULT_ECPport)
+    ECPname = args.get('-n', settings.DEFAULT_ECPname)
+    ECPport = args.get('-p', settings.DEFAULT_ECPport)
 
     TESip, TESport = None, None
 
