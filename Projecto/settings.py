@@ -7,11 +7,13 @@ DEBUG = True
 BUFFERSIZE = 4096
 
 # USER Configuration
-DEFAULT_ECPport = 58054
-DEFAULT_ECPname = 'lima'
 
 
 # ECP Configuration
+DEFAULT_ECPname = 'localhost'
+DEFAULT_ECPport = 58054
+
+TOPICS_FILE = "topics.txt"
 
 # TES Configuration
 DEFAULT_TESname = 'localhost'

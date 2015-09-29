@@ -14,7 +14,7 @@ def _list(ecpname, ecpport):
     udp = UDP(ecpname, ecpport)
     message = 'TQR\n'
     data = udp.request(message)
-    # data = udp.fake_request(message, 'AWT 8 Topic1 Topic2 Topic3 Topic4 Topic5\n')
+    # data = udp.fake_request(message)
 
     # 2' handling response from request to ECP server
     # 2.1' error (EOF) - there is no topics available
@@ -41,13 +41,12 @@ def _list(ecpname, ecpport):
     log.debug("User command LIST complete.")
 
 
-def _request(ecpname, ecpport, topic_num):
+def _request(ecpname, ecpport, topic_num, SID):
     # 1' send "TER Tnn\n" to ECP server
     # validar quando nao metemos o nunmero!!
     udp = UDP(ecpname, ecpport)
     message = 'TER {}\n'.format(topic_num)
-    # data = udp.request(message)
-    data = udp.fake_request(message, 'AWTES 192.168.0.1 12345\n')
+    data = udp.request(message)
 
     TESip, TESport = None, None
     # 2' handling response from request to ECP server
@@ -65,14 +64,9 @@ def _request(ecpname, ecpport, topic_num):
         data = data.split(" ")
         TESip, TESport = data[1:]
 
-    # GANDA HACK
-    TESip = 'localhost'
-    TESport = 59000
-
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        SID = "75455"  # COMO É QUE SABEMOS ISTO??
         message = 'RQT {}\n'.format(SID)
         data = tcp.request(message)
 
@@ -125,15 +119,19 @@ def _submit(tesip, tesport, answers):
 if __name__ == "__main__":
     log.debug("Starting client...")
 
-    # handling arguments
-    args = handle_args(sys.argv)
+    # format of command is ./user SID [-n ECPname] [-p ECPport]
+    # only (size) 6 arguments is allowed
+    args = handle_args(sys.argv, allowed_arguments=5 + 1, error_msg='./user SID [-n ECPname] [-p ECPport]')
 
     ECPname = args.get('-n', settings.DEFAULT_ECPname)
     ECPport = args.get('-p', settings.DEFAULT_ECPport)
 
+    # hack for now.
+    SID = sys.argv[1]
+
     TESip, TESport = None, None
 
-    log.debug("Using ECPname = {} and ECPport = {}".format(ECPname, ECPport))
+    log.debug("Using SID = {}, ECPname = {}, ECPport = {}".format(SID, ECPname, ECPport))
 
     # forever
     while(True):
@@ -166,7 +164,6 @@ if __name__ == "__main__":
             # exit - exit
             log.debug("Exiting user application.")
             break
-
         else:
             if input_data.strip() != '':
                 log.warning("\"{}\" command does not exist.".format(input_data))
