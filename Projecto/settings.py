@@ -6,8 +6,8 @@ DEBUG_USER = True
 DEBUG_TES = True
 DEBUG_ECP = True
 
-# buffer size is equal to 1024mb*4 = 4mb
-BUFFERSIZE = 4096
+# buffer size is equal to 1024bytes*4*1024 = 4mb
+BUFFERSIZE = 4096 * 1024
 
 # ECP Configuration
 DEFAULT_ECPname = 'localhost'
@@ -24,6 +24,4 @@ STATS_FILE = "stats.txt"
 QUIZ_PATH = os.getcwd() + "/quizes"
 USER_QUIZ_PATH = os.getcwd() + "/user_quizes"
 
-DEADLINE_HOUR = 12
-DEADLINE_MINUTE = 50
-DEADLINE_SECOND = 00
+DEADLINE_DELTA = 50

@@ -1,1 +1,2 @@
 topico1 localhost 59100
+topico2 localhost 59100

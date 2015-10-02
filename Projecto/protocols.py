@@ -35,6 +35,13 @@ class TCP(object):
             return message[:-1]
         return message
 
+    def _limit_amount(self, message):
+        '''
+        if data in msg is bigger than 60
+        '''
+        return message[:60]
+
+
     def request(self, data):
         '''
         makes tcp socket connection to host and port machine
@@ -47,12 +54,25 @@ class TCP(object):
         # Connect to a remote socket at address.
         sock.connect((self.host, self.port))
         try:
+
             log.debug("[TCP] Sending request to {}:{} > \"{}\".".format(self.host, self.port, self._remove_new_line(data)))
             # Send data to the socket.
             sock.sendall(data)
             # Receive data from the socket (max amount is the buffer size).
-            data = sock.recv(self.buffer_size)
-            log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(data)))
+
+            data, old_data = "", ""
+            data += sock.recv(self.buffer_size)
+            print("old_data {} | data {}".format(len(old_data), len(data)))
+            i = 0
+            while len(data) != len(old_data):
+                i += 1
+                old_data = data
+                import pdb; pdb.set_trace()
+                data += sock.recv(self.buffer_size)
+                print(i)
+                print("old_data {} | data {}".format(len(old_data), len(data)))
+
+            log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
         finally:
             # Close socket connection
             sock.close()
@@ -94,7 +114,7 @@ class TCP(object):
 
                         data = handle_data.dispatch(data)
 
-                        log.debug("Sending back > \"{}\".".format(self._remove_new_line(data)))
+                        log.debug("Sending back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
                         # Send data to the socket.
                         connection.sendall(data)
                     else:
@@ -171,7 +191,7 @@ class UDP(object):
             # Receive data from client (data, addr)
             data, addr = s.recvfrom(self.buffer_size)
             # Get connection HostIP and HostPORT
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             addr_ip, addr_port = addr
             if not data:
                 break
@@ -214,10 +234,10 @@ class TESProtocols(object):
         protocol = data[0]
         data = data[1:]
         # dispatch to correct method
-        if protocol == "RQS":
-            data = self._RQS(data)
-        elif protocol == "RQT":
+        if protocol == "RQT":
             data = self._RQT(data)
+        elif protocol == "RQS":
+            data = self._RQS(data)
         else:
             data = "ERR"
         # put back the \n
@@ -297,7 +317,7 @@ class TESProtocols(object):
                 if s_ans == c_ans:
                     score += 20
 
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             # send score to ECP server
             topic_name = __get_topic_name(QID)
             data = self.UDP.request("IQR {} {} {} {}".format(SID, QID, topic_name, score))
@@ -327,32 +347,52 @@ class TESProtocols(object):
         is provided.
         '''
 
-        def __get_quiz(qnum):
+        def __get_quiz():
             '''
             open file and return data form that quiz_file
             '''
-            filename = "TnnQF{}.txt".format(qnum)
-            with open(settings.QUIZ_PATH + "/{}".format(filename), 'r') as tfile:
+            fiches = []
+            for f in os.listdir(settings.QUIZ_PATH):
+                if os.path.isfile(os.path.join(settings.QUIZ_PATH,f)):
+                    fiches.append(f)
+
+            outrosfiches = []
+            for fich in fiches:
+                if '.txt' in fich:
+                    outrosfiches.append(fich)
+
+            ## outrosfiches ['TnnQF1.txt', 'TnnQF1A.txt']
+            quiz = None
+            for fich in outrosfiches:
+                if 'A' not in fich:
+                    quiz = fich
+
+            # quiz = 'TnnQF1.txt'
+            with open(settings.QUIZ_PATH + "/{}".format(quiz), 'r') as tfile:
                 content = tfile.read()
             return content
+
+        def __get_data():
+            '''
+            returs data of file creation
+            '''
+            return date.datetime.now().strftime("%d%b%Y_%H:%M:%S").upper()
 
         def __get_deadline():
             '''
             just builds a datetime object and then parses it to the
             correct format DDMMMYYYY_HH:MM:SS
             '''
-            now = date.date.today()
-            hour, minute, second = settings.DEADLINE_HOUR, settings.DEADLINE_MINUTE, settings.DEADLINE_SECOND
-            deadline = date.datetime(now.year, now.month, now.day, hour, minute, second)
+            deadline = date.datetime.now() + date.timedelta(0, settings.DEADLINE_DELTA)
             return deadline.strftime("%d%b%Y_%H:%M:%S").upper()
 
         try:
             # get student ID, and Tnn
-            SID, Tn = data[0], data[1]
+            SID = data[0]
             # get quiz file data
-            quiz = __get_quiz(Tn)
+            quiz = __get_quiz()
             # generate random QID for this transaction
-            QID = "{}{}{}".format(uuid.uuid4().hex[:10], Tn, SID)
+            QID = "{}_{}".format(SID, __get_data())
             # generate deadline which will be in an hour
             deadline = __get_deadline()
             # size of the quiz
@@ -383,7 +423,7 @@ class ECPProtocols(object):
         handled data
         '''
         # removes \n from string
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         data = data[:-1]
         # split data into chunks
         data = data.split(" ")
@@ -471,7 +511,7 @@ class ECPProtocols(object):
         '''
         try:
             SID, QID, topic_name, score = data
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             # save this on STATS_FILE
             with open(settings.STATS_FILE, 'w+') as sfile:
                 sfile.write("{} {} {} {}".format(SID, QID, topic_name, score))

@@ -38,7 +38,6 @@ def _list(ecpname, ecpport):
             print("\t{} - {}").format(index, topic)
     log.debug("User command LIST complete.")
 
-
 def _request(ecpname, ecpport, topic_num, SID):
     # 1' send "TER Tnn\n" to ECP server
     udp = UDP(ecpname, ecpport)
@@ -64,7 +63,7 @@ def _request(ecpname, ecpport, topic_num, SID):
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        message = 'RQT {} {}\n'.format(SID, topic_num)
+        message = 'RQT {}\n'.format(SID)
         data = tcp.request(message)
 
         # 2' handling response from request to TES server
@@ -79,17 +78,14 @@ def _request(ecpname, ecpport, topic_num, SID):
             data = data.split(" ")
             QID, deadline, size = data[1:4]
             data = " ".join(data[4:])
-            filename = "{}/{}.pdf".format(USER_QUIZ_PATH, QID)
+            filename = "{}/{}.pdf".format(settings.USER_QUIZ_PATH, QID)
             print("Downloading and saving quiz \"{}\" with {} bytes.".format(filename, size))
-            with open(filename, "w+") as qfile, open(settings.FAKE_DATABASE, "a+") as db:
+            with open(filename, "w+") as qfile:
                 # save file to disk
                 qfile.write(data)
-                # save record in fake db
-                db.write("{}\n".format(" ".join([QID, topic_num, deadline])))
             print("File saved. You have until {} to submit your answers.".format(deadline))
         log.debug("User command REQUEST complete.")
     return TESip, TESport, QID
-
 
 def _submit(tesip, tesport, SID, QID, answers):
     # 1' send "RQS SID QID V1 V2 V3 V4 V5\n" to TES server
@@ -170,6 +166,7 @@ if __name__ == "__main__":
             # exit - exit
             log.debug("Exiting user application.")
             break
+
         else:
             if input_data.strip() != '':
                 log.warning("\"{}\" command does not exist.".format(input_data))
