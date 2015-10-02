@@ -29,17 +29,18 @@ class Logger(object):
         if self._warning:
             print("[WARNING]: {}".format(msg))
 
-def handle_args(arguments, allowed_arguments=2):
+def handle_args(arguments, error_msg=None, allowed_arguments=2):
     '''
     makes all verification to user arguments and returns
     a dictionary with all args
     '''
-    # format of command is ./user [-n ECPname] [-p ECPport]
-    # only (size) 5 arguments is allowed
     log = Logger()
+    if len(arguments) > allowed_arguments:
 
-    if len(arguments) > (allowed_arguments * 2) + 1:
-        log.error("Too many arguments.\nUse ./user [-n ECPname] [-p ECPport]")
+        if error_msg:
+            error_msg = "Use {}".format(error_msg)
+
+        log.error("Too many arguments.\n{}".format(error_msg))
         sys.exit()
 
     dictionary = {}

@@ -1,29 +1,24 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-import sys, os, socket
+import os
+import sys
+import settings
 from protocols import UDP
-from utils import Logger, handle_args_ecp
-log = Logger(debug=True)
-
-# Default port of the ECP server
-DEFAULT_ECPport = 58054
-
-DEFAULT_ECPname = 'localhost'
-
-
-
-
+from utils import Logger, handle_args
+log = Logger(debug=settings.DEBUG)
 
 if __name__ == "__main__":
-    log.debug("Starting Central ECP server...")
+    log.debug("Starting ECP server...")
 
     # handling arguments
-    args = handle_args_ecp(sys.argv)
 
-    ECPport = args.get('-p', DEFAULT_ECPport)
+    args = handle_args(sys.argv, allowed_arguments=2, error_msg='./ecp [-p ECPport]')
+    ECPname = settings.DEFAULT_ECPname
+    ECPport = args.get('-p', settings.DEFAULT_ECPport)
 
-    log.debug("Iniciou {}".format(ECPport))
-    udp = UDP(DEFAULT_ECPname, DEFAULT_ECPport)
+    log.debug("Using ECPname = {}, ECPport = {}".format(ECPname, ECPport))
+
+    # running server
+    udp = UDP(ECPname, ECPport)
     udp.run()
-    
+
