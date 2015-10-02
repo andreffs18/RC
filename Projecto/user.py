@@ -79,7 +79,7 @@ def _request(ecpname, ecpport, topic_num, SID):
             data = data.split(" ")
             QID, deadline, size = data[1:4]
             data = " ".join(data[4:])
-            filename = "{}.pdf".format(QID)
+            filename = "{}/{}.pdf".format(USER_QUIZ_PATH, QID)
             print("Downloading and saving quiz \"{}\" with {} bytes.".format(filename, size))
             with open(filename, "w+") as qfile, open(settings.FAKE_DATABASE, "a+") as db:
                 # save file to disk

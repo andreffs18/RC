@@ -19,9 +19,10 @@ DEFAULT_TESport = 59000
 
 FAKE_DATABASE = "db.txt"
 TOPICS_FILE = "topics.txt"
+STATS_FILE = "stats.txt"
+
 QUIZ_PATH = os.getcwd() + "/quizes"
 USER_QUIZ_PATH = os.getcwd() + "/user_quizes"
-STATS_FILE = "stats.txt"
 
 DEADLINE_HOUR = 12
 DEADLINE_MINUTE = 50
