@@ -1,23 +1,25 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 import os
 import sys
 import settings
+from protocols import TCP, TESProtocols
 from utils import Logger, handle_args
-from protocols import TCP
-
-log = Logger(debug=settings.DEBUG)
+log = Logger(debug=settings.DEBUG_TES)
 
 if __name__ == "__main__":
     log.debug("Starting TES server...")
 
-    # handling arguments
-    args = handle_args(sys.argv, allowed_arguments=1)
+    # handling argument
+    # format of command is ./tes [-p TESport] [-n ECPname] [-e ECPport],
+    # only (size) 3 arguments is alloweds
+    args = handle_args(sys.argv, allowed_arguments=7, error_msg='./tes [-p TESport] [-n ECPname] [-e ECPport]')
     TESport = args.get('-p', settings.DEFAULT_TESport)
+    ECPname = args.get('-n', settings.DEFAULT_ECPname)
+    ECPport = args.get('-e', settings.DEFAULT_ECPport)
 
-    log.debug("Using TESport = {}".format(TESport))
+    log.debug("Using TESport = {}, ECPname = {}, ECPport = {}.".format(TESport, ECPname, ECPport))
 
     # running server
     tcp = TCP(settings.DEFAULT_TESname, TESport)
-    tcp.run()
+    tcp.run(handle_data=TESProtocols(ECPname, ECPport))
