@@ -21,7 +21,11 @@ FAKE_DATABASE = "db.txt"
 TOPICS_FILE = "topics.txt"
 STATS_FILE = "stats.txt"
 
-QUIZ_PATH = os.getcwd() + "/quizes"
+QUIZ_PATH = os.getcwd() + "/quiz"
 USER_QUIZ_PATH = os.getcwd() + "/user_quizes"
-
+# this value will be added to the current date
 DEADLINE_DELTA = 50
+
+# timout after this amout of seconds
+TIMEOUT_DELAY = 5
+

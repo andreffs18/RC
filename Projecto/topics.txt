@@ -1,2 +1,3 @@
-topico1 localhost 59100
-topico2 localhost 59100
+Que_giro_funga localhost 59100
+Carros_e_afins localhost 59200
+Sobre_cenas localhost 59300

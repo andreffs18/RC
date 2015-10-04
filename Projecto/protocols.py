@@ -53,26 +53,33 @@ class TCP(object):
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
         # Connect to a remote socket at address.
         sock.connect((self.host, self.port))
+        # define timout to settings.TIMEOUT_DELAY
+        sock.settimeout(settings.TIMEOUT_DELAY)
         try:
 
             log.debug("[TCP] Sending request to {}:{} > \"{}\".".format(self.host, self.port, self._remove_new_line(data)))
             # Send data to the socket.
             sock.sendall(data)
             # Receive data from the socket (max amount is the buffer size).
-
-            data, old_data = "", ""
-            data += sock.recv(self.buffer_size)
-            print("old_data {} | data {}".format(len(old_data), len(data)))
-            i = 0
-            while len(data) != len(old_data):
-                i += 1
-                old_data = data
-                import pdb; pdb.set_trace()
-                data += sock.recv(self.buffer_size)
-                print(i)
-                print("old_data {} | data {}".format(len(old_data), len(data)))
+            data = sock.recv(self.buffer_size)
+            # F#$% this. hack this way throught. it's late and we need to finish this
+            # if by any means, the last char in received data is " " then we just
+            # repeat the procces and increase the timeout 3 times.
+            # otherwise we continue and don't repeat the process
+            if data[-1] >= " ":
+                sock.settimeout(settings.TIMEOUT_DELAY * 3)
+                log.debug("Final char in data from request is " ".")
+                old_data = ""
+                while len(data) != len(old_data):
+                    old_data = data
+                    data += sock.recv(self.buffer_size)
+                log.debug("Downloaded content size is {}.".format(len(data)))
 
             log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
+        # in case of timeout
+        except timeout, msg:
+            log.error("Request Timeout.")
+            data = 'ERR'
         finally:
             # Close socket connection
             sock.close()
@@ -154,6 +161,8 @@ class UDP(object):
         sock = socket(AF_INET, SOCK_DGRAM)
         # Set the value of the given socket option (see the Unix manual page setsockopt(2)).
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        # define timout to settings.TIMEOUT_DELAY
+        sock.settimeout(settings.TIMEOUT_DELAY)
         try:
             log.debug("[UDP] Sending request to {}:{} > \"{}\".".format(self.host, self.port, self._remove_new_line(data)))
             # Send data to the socket.
@@ -161,6 +170,10 @@ class UDP(object):
             # Receive data from the socket (max amount is the buffer size).
             data = sock.recv(self.buffer_size)
             log.debug("[UDP] Got back > \"{}\".".format(self._remove_new_line(data)))
+        # in case of timeout
+        except timeout, msg:
+            log.error("Request Timeout.")
+            data = 'ERR'
         finally:
             # Close socket connection
             sock.close()
@@ -387,6 +400,7 @@ class TESProtocols(object):
             return deadline.strftime("%d%b%Y_%H:%M:%S").upper()
 
         try:
+            import pdb; pdb.set_trace()
             # get student ID, and Tnn
             SID = data[0]
             # get quiz file data
@@ -520,5 +534,4 @@ class ECPProtocols(object):
         except:
             log.error("There was a problem saving quiz infomation on ECP.")
             return "ERR"
-
 

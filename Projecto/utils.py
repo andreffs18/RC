@@ -51,12 +51,17 @@ def handle_args(arguments, error_msg=None, allowed_arguments=2):
     dictionary = {}
     allowed_args = ['-n', '-p', '-e']
 
-    for arg in allowed_args:
-        if arg in arguments:
-            # get current element's index on array
-            index_of = arguments.index(arg)
-            # get value from that index + 1
-            dictionary[arg] = arguments[index_of + 1]
+    try:
+        for arg in allowed_args:
+            if arg in arguments:
+                # get current element's index on array
+                index_of = arguments.index(arg)
+                # get value from that index + 1
+                dictionary[arg] = arguments[index_of + 1]
+    except IndexError:
+        log.error("Too few arguments.\n{}.".format(error_msg))
+        sys.exit()
+
 
     return dictionary
 

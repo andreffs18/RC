@@ -128,8 +128,20 @@ if __name__ == "__main__":
     ECPname = args.get('-n', settings.DEFAULT_ECPname)
     ECPport = args.get('-p', settings.DEFAULT_ECPport)
 
-    # hack for now.
-    SID = sys.argv[1]
+    # get SID
+    try:
+        SID = sys.argv[1]
+        if len(SID) != 5:
+            log.error("SID not valid.\n ./user SID [-n ECPname] [-p ECPport]")
+            sys.exit()
+        # test if is a number, then back to str
+        SID = str(int(SID))
+    except IndexError:
+        log.error("Too few arguments.\n ./user SID [-n ECPname] [-p ECPport]")
+        sys.exit()
+    except ValueError:
+        log.error("SID must be a number.\n ./user SID [-n ECPname] [-p ECPport]")
+        sys.exit()
 
     TESip, TESport, QID = None, None, None
 
