@@ -92,7 +92,13 @@ def _submit(tesip, tesport, SID, QID, answers):
     tcp = TCP(tesip, tesport)
 
     message = ['RQS', SID, QID]
-    message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
+    final_answers = ['N', 'N', 'N', 'N', 'N']
+
+    for index, (f_ans, ans) in enumerate(zip(final_answers, answers)):
+        if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd']:
+            final_answers[index] = ans.upper()
+
+    message.extend(final_answers)
     message = '{}\n'.format(' '.join(message))
     data = tcp.request(message)
 
@@ -158,10 +164,15 @@ if __name__ == "__main__":
             _list(ECPname, ECPport)
 
         elif input_data.startswith('request'):
-            # request - Topic NUm (Tnn) por TCP chama o TES respectivo
-            log.debug("Requesting information from ECP server about the TES server for that topic.")
-            topic_num = input_data.replace('request', '').strip()
-            TESip, TESport, QID = _request(ECPname, ECPport, topic_num, SID)
+            # request was already pressed,
+            if QID:
+                log.error("Please submit your answers first.(QID = {})".format(QID))
+            else:
+                # request - Topic NUm (Tnn) por TCP chama o TES respectivo
+                log.debug("Requesting information from ECP server about the TES server for that topic.")
+                topic_num = input_data.replace('request', '').strip()
+
+                TESip, TESport, QID = _request(ECPname, ECPport, topic_num, SID)
 
         elif input_data.startswith('submit'):
             # submit <answers_sequece> - TCP Tes resposta
@@ -170,6 +181,7 @@ if __name__ == "__main__":
 
             if TESip and TESport and QID:
                 _submit(TESip, TESport, SID, QID, answers)
+                TESip, TESport, QID = None, None, None
             else:
                 log.debug("No TESip or TESport.")
                 log.error("No TESip or TESport. Request first a topic and then submit your answers.")
