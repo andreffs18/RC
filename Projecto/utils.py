@@ -62,6 +62,4 @@ def handle_args(arguments, error_msg=None, allowed_arguments=2):
         log.error("Too few arguments.\n{}.".format(error_msg))
         sys.exit()
 
-
     return dictionary
-

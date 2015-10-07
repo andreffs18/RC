@@ -289,14 +289,14 @@ class TESProtocols(object):
 
         def __get_topic_name(quiz_name):
             _, topic_name, _ = __db_find_quiz(quiz_name)
-            return "{}.txt".format(topic_name)
+            return "{}.pdf".format(topic_name)
 
         def __get_correct_answers(quiz_name):
             '''
             go to quiz_name file and get correct answeres
             '''
             topic_name = __get_topic_name(quiz_name)
-            filename = topic_name.split(".")[0] + "A.txt"
+            filename = "{}A.txt".format(topic_name.split(".")[0])
             try:
                 with open(settings.QUIZ_PATH + "/{}".format(filename), 'r') as cquiz:
                     content = cquiz.readlines()
@@ -366,10 +366,10 @@ class TESProtocols(object):
         def __get_quiz_name():
             files = []
             for f in os.listdir(settings.QUIZ_PATH):
-                if os.path.isfile(os.path.join(settings.QUIZ_PATH,f)) and '.txt' in f:
+                if os.path.isfile(os.path.join(settings.QUIZ_PATH,f)) and '.pdf' in f:
                     files.append(f)
 
-            ## outrosfiches ['TnnQF1.txt', 'TnnQF1A.txt']
+            ## outrosfiches ['TnnQF1.pdf', 'TnnQF1A.pdf']
             ## remove all files tthat contains 'A'
             files = [f for f in files if 'A' not in f]
             quiz = random.choice(files)

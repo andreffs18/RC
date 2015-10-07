@@ -10,11 +10,11 @@ DEBUG_ECP = True
 BUFFERSIZE = 4096 * 1024
 
 # ECP Configuration
-DEFAULT_ECPname = 'localhost'
+DEFAULT_ECPname = 'localhost'  # change to '' if in LT5
 DEFAULT_ECPport = 58054
 
 # TES Configuration
-DEFAULT_TESname = 'localhost'
+DEFAULT_TESname = 'localhost'  # change to '' if in LT5
 DEFAULT_TESport = 59000
 
 FAKE_DATABASE = "db.txt"

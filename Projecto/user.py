@@ -13,7 +13,6 @@ def _list(ecpname, ecpport):
     udp = UDP(ecpname, ecpport)
     message = 'TQR\n'
     data = udp.request(message)
-    # data = udp.fake_request(message)
 
     # 2' handling response from request to ECP server
     # 2.1' error (EOF) - there is no topics available
