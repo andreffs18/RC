@@ -64,7 +64,6 @@ def _request(ecpname, ecpport, topic_num, SID):
         tcp = TCP(TESip, TESport)
         message = 'RQT {}\n'.format(SID)
         data = tcp.request(message)
-
         # 2' handling response from request to TES server
         # 2.1' error (ERR) - something unexpected happen
         if data.startswith('ERR'):
@@ -75,7 +74,9 @@ def _request(ecpname, ecpport, topic_num, SID):
             # validar bem esta popo se naot iver data beka beka
             log.debug("No errors connecting to TES with TCP Protocol.")
             data = data.split(" ")
+
             QID, deadline, size = data[1:4]
+
             data = " ".join(data[4:])
             filename = "{}/{}.pdf".format(settings.USER_QUIZ_PATH, QID)
             print("Downloading and saving quiz \"{}\" with {} bytes.".format(filename, size))

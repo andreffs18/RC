@@ -67,18 +67,21 @@ class TCP(object):
             # otherwise we continue and don't repeat the process
             if data[-1] >= " ":
                 sock.settimeout(settings.TIMEOUT_DELAY * 3)
-                log.debug("Final char in data from request is " ".")
+                log.debug("Final char in data from request is \" \".")
                 old_data = ""
                 while len(data) != len(old_data):
                     old_data = data
                     data += sock.recv(self.buffer_size)
-                log.debug("Downloaded content size is {}.".format(len(data)))
-
+                log.debug("Downloaded content size is {} bytes.".format(len(data)))
             log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
         # in case of timeout
         except timeout, msg:
-            log.error("Request Timeout.")
-            data = "ERR"
+            if settings.SKIP_ON_FIRST:
+                log.debug("Downloaded content size is {} bytes.".format(len(data)))
+                pass
+            else:
+                log.error("Request Timeout.")
+                data = "ERR"
         # in case of error
         except error, msg:
             log.error("Something happen when trying to connect to {}:{}.".format(self.host, self.port))
@@ -121,7 +124,6 @@ class TCP(object):
                         if not handle_data:
                             # Create instance of ECPProtocols to handle all data
                             handle_data = TESProtocols()
-
                         data = handle_data.dispatch(data)
 
                         log.debug("Sending back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
@@ -336,7 +338,7 @@ class TESProtocols(object):
                     score += 20
 
             # send score to ECP server
-            topic_name = __get_topic_name(QID)
+            topic_name = __get_topic_name(QID).replace(".pdf", "")
             data = self.UDP.request("IQR {} {} {} {}\n".format(SID, QID, topic_name, score))
             # 2' handling response from request to ECP server
             # 2.1' error (ERR) - something unexpected happen
