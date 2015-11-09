@@ -5,8 +5,13 @@ import sys
 class Logger(object):
     '''
     Utils Logging
-    '''
+    has 4 variables that controls if the log goes to the output(screen)
+    _error, _debug, _warning and _info
+    default:  all loggers are enable except debug, which is False
 
+    to enable debug log
+    > log = Logger(debug=True)
+    '''
     def __init__(self, debug=False, info=True, error=True, warning=True):
         self._error = error
         self._debug = debug
@@ -40,11 +45,11 @@ def handle_args(arguments, error_msg=None, allowed_arguments=2):
         if error_msg:
             error_msg = "Use {}".format(error_msg)
 
-        log.error("Too many arguments.\n{}".format(error_msg))
+        log.error("Too many arguments.\n{}.".format(error_msg))
         sys.exit()
 
     dictionary = {}
-    allowed_args = ['-n', '-p']
+    allowed_args = ['-n', '-p', '-e']
 
     for arg in allowed_args:
         if arg in arguments:
@@ -52,25 +57,6 @@ def handle_args(arguments, error_msg=None, allowed_arguments=2):
             index_of = arguments.index(arg)
             # get value from that index + 1
             dictionary[arg] = arguments[index_of + 1]
-
-    return dictionary
-
-def handle_args_ecp(arguments):
-    '''
-    makes all verification to user arguments and returns
-    a dictionary with all args
-    '''
-    # format of command is ./ecp [-p ECPport]
-    # only (size) 3 arguments is allowed
-
-    if len(arguments) > 3:
-        log.error("Too many arguments.\nUse ./ecp [-p ECPport]")
-        sys.exit()
-
-    dictionary = {}
-    # try to get port from arguments
-    if "-p" in arguments:
-        dictionary['-p'] = arguments[2]
 
     return dictionary
 

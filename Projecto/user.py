@@ -1,12 +1,11 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 import os
 import sys
 import settings
 from protocols import UDP, TCP
 from utils import Logger, handle_args
-log = Logger(debug=settings.DEBUG)
+log = Logger(debug=settings.DEBUG_USER)
 
 
 def _list(ecpname, ecpport):
@@ -29,7 +28,7 @@ def _list(ecpname, ecpport):
         return
     # 2.3' present list of topics
     else:
-        log.debug("No errors connecting to ECP with UDP Protocol")
+        log.debug("No errors connecting to ECP with UDP Protocol.")
         data = data.split(' ')
         amount_of_topics = int(data[1])
         topics = data[2:]
@@ -37,18 +36,16 @@ def _list(ecpname, ecpport):
         print("List of Topics from ECP Server:")
         for index, topic in enumerate(topics, 1):
             print("\t{} - {}").format(index, topic)
-
     log.debug("User command LIST complete.")
 
 
 def _request(ecpname, ecpport, topic_num, SID):
     # 1' send "TER Tnn\n" to ECP server
-    # validar quando nao metemos o nunmero!!
     udp = UDP(ecpname, ecpport)
     message = 'TER {}\n'.format(topic_num)
     data = udp.request(message)
 
-    TESip, TESport = None, None
+    TESip, TESport, QID = None, None, None
     # 2' handling response from request to ECP server
     # 2.1' error (EOF) - there is no topics available
     if data.startswith('EOF'):
@@ -60,14 +57,14 @@ def _request(ecpname, ecpport, topic_num, SID):
         log.error("ERR - There was an error connecting to ECP server. Try again later.")
     # 2.3' returns message
     else:
-        log.debug("No errors connecting to ECP with UDP Protocol")
+        log.debug("No errors connecting to ECP with UDP Protocol.")
         data = data.split(" ")
         TESip, TESport = data[1:]
 
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        message = 'RQT {}\n'.format(SID)
+        message = 'RQT {} {}\n'.format(SID, topic_num)
         data = tcp.request(message)
 
         # 2' handling response from request to TES server
@@ -78,26 +75,30 @@ def _request(ecpname, ecpport, topic_num, SID):
         # 2.2' returns message
         else:
             # validar bem esta popo se naot iver data beka beka
-            log.debug("No errors connecting to TES with TCP Protocol")
+            log.debug("No errors connecting to TES with TCP Protocol.")
             data = data.split(" ")
-            qid, time, size = data[1:4]
-            data = " ".join(data[4:]) # Nao sei o que fazer com esta informacao
-
+            QID, deadline, size = data[1:4]
+            data = " ".join(data[4:])
+            filename = "{}/{}.pdf".format(USER_QUIZ_PATH, QID)
+            print("Downloading and saving quiz \"{}\" with {} bytes.".format(filename, size))
+            with open(filename, "w+") as qfile, open(settings.FAKE_DATABASE, "a+") as db:
+                # save file to disk
+                qfile.write(data)
+                # save record in fake db
+                db.write("{}\n".format(" ".join([QID, topic_num, deadline])))
+            print("File saved. You have until {} to submit your answers.".format(deadline))
         log.debug("User command REQUEST complete.")
+    return TESip, TESport, QID
 
-    return TESip, TESport
 
-
-def _submit(tesip, tesport, answers):
+def _submit(tesip, tesport, SID, QID, answers):
     # 1' send "RQS SID QID V1 V2 V3 V4 V5\n" to TES server
     tcp = TCP(tesip, tesport)
-    SID, QID = '75455', 'codeforpdffile'
 
     message = ['RQS', SID, QID]
     message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
     message = '{}\n'.format(' '.join(message))
     data = tcp.request(message)
-    # data = tcp.fake_request(message, 'AQS ist175455 100\n')
 
     # 2' handling response from request to TES server
     # 2.1' error (ERR) - something unexpected happen
@@ -110,9 +111,14 @@ def _submit(tesip, tesport, answers):
         log.debug("-1 occur from TCP request to TES.")
         log.error("-1 - Questionnaire submited after the deadline.")
         return
-    # 2.3' returns message
+    # 2.3' error (-1) - answers submited after the deadline
+    if data.startswith('-2'):
+        log.debug("-2 occur from TCP request to TES.")
+        log.error("-2 - This quiz \"{}\" was not created for this student {}.".format(QID, SID))
+        return
+    # 2.4' returns message
     else:
-        log.debug("No errors connecting to TES with TCP Protocol")
+        log.debug("No errors connecting to TES with TCP Protocol.")
         data = data.split(" ")
         print("Obtained Score {}%".format(data[2]))
 
@@ -129,9 +135,9 @@ if __name__ == "__main__":
     # hack for now.
     SID = sys.argv[1]
 
-    TESip, TESport = None, None
+    TESip, TESport, QID = None, None, None
 
-    log.debug("Using SID = {}, ECPname = {}, ECPport = {}".format(SID, ECPname, ECPport))
+    log.debug("Using SID = {}, ECPname = {}, ECPport = {}.".format(SID, ECPname, ECPport))
 
     # forever
     while(True):
@@ -147,16 +153,16 @@ if __name__ == "__main__":
             # request - Topic NUm (Tnn) por TCP chama o TES respectivo
             log.debug("Requesting information from ECP server about the TES server for that topic.")
             topic_num = input_data.replace('request', '').strip()
-            #Hack?
-            TESip, TESport = _request(ECPname, ECPport, topic_num, SID)
+
+            TESip, TESport, QID = _request(ECPname, ECPport, topic_num, SID)
 
         elif input_data.startswith('submit'):
             # submit <answers_sequece> - TCP Tes resposta
             log.debug("Submiting answers to TES server.")
             answers = filter(None, input_data.replace('submit', '').strip().split(" "))
 
-            if TESip and TESport:
-                _submit(TESip, TESport, answers)
+            if TESip and TESport and QID:
+                _submit(TESip, TESport, SID, QID, answers)
             else:
                 log.debug("No TESip or TESport.")
                 log.error("No TESip or TESport. Request first a topic and then submit your answers.")
