@@ -13,7 +13,6 @@ def _list(ecpname, ecpport):
     udp = UDP(ecpname, ecpport)
     message = 'TQR\n'
     data = udp.request(message)
-    # data = udp.fake_request(message)
 
     # 2' handling response from request to ECP server
     # 2.1' error (EOF) - there is no topics available
@@ -37,7 +36,6 @@ def _list(ecpname, ecpport):
         for index, topic in enumerate(topics, 1):
             print("\t{} - {}").format(index, topic)
     log.debug("User command LIST complete.")
-
 
 def _request(ecpname, ecpport, topic_num, SID):
     # 1' send "TER Tnn\n" to ECP server
@@ -64,9 +62,8 @@ def _request(ecpname, ecpport, topic_num, SID):
     if TESip and TESport:
         # in case everything went okay, we have a TES IP and PORT to connect to
         tcp = TCP(TESip, TESport)
-        message = 'RQT {} {}\n'.format(SID, topic_num)
+        message = 'RQT {}\n'.format(SID)
         data = tcp.request(message)
-
         # 2' handling response from request to TES server
         # 2.1' error (ERR) - something unexpected happen
         if data.startswith('ERR'):
@@ -77,26 +74,31 @@ def _request(ecpname, ecpport, topic_num, SID):
             # validar bem esta popo se naot iver data beka beka
             log.debug("No errors connecting to TES with TCP Protocol.")
             data = data.split(" ")
+
             QID, deadline, size = data[1:4]
+
             data = " ".join(data[4:])
-            filename = "{}/{}.pdf".format(USER_QUIZ_PATH, QID)
+            filename = "{}/{}.pdf".format(settings.USER_QUIZ_PATH, QID)
             print("Downloading and saving quiz \"{}\" with {} bytes.".format(filename, size))
-            with open(filename, "w+") as qfile, open(settings.FAKE_DATABASE, "a+") as db:
+            with open(filename, "w+") as qfile:
                 # save file to disk
                 qfile.write(data)
-                # save record in fake db
-                db.write("{}\n".format(" ".join([QID, topic_num, deadline])))
             print("File saved. You have until {} to submit your answers.".format(deadline))
         log.debug("User command REQUEST complete.")
     return TESip, TESport, QID
-
 
 def _submit(tesip, tesport, SID, QID, answers):
     # 1' send "RQS SID QID V1 V2 V3 V4 V5\n" to TES server
     tcp = TCP(tesip, tesport)
 
     message = ['RQS', SID, QID]
-    message.extend([ans.upper() if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd'] else 'N' for ans in answers])
+    final_answers = ['N', 'N', 'N', 'N', 'N']
+
+    for index, (f_ans, ans) in enumerate(zip(final_answers, answers)):
+        if ans in ['A', 'a', 'B', 'b', 'C', 'c', 'D', 'd']:
+            final_answers[index] = ans.upper()
+
+    message.extend(final_answers)
     message = '{}\n'.format(' '.join(message))
     data = tcp.request(message)
 
@@ -132,8 +134,20 @@ if __name__ == "__main__":
     ECPname = args.get('-n', settings.DEFAULT_ECPname)
     ECPport = args.get('-p', settings.DEFAULT_ECPport)
 
-    # hack for now.
-    SID = sys.argv[1]
+    # get SID
+    try:
+        SID = sys.argv[1]
+        if len(SID) != 5:
+            log.error("SID not valid.\n ./user SID [-n ECPname] [-p ECPport]")
+            sys.exit()
+        # test if is a number, then back to str
+        SID = str(int(SID))
+    except IndexError:
+        log.error("Too few arguments.\n ./user SID [-n ECPname] [-p ECPport]")
+        sys.exit()
+    except ValueError:
+        log.error("SID must be a number.\n ./user SID [-n ECPname] [-p ECPport]")
+        sys.exit()
 
     TESip, TESport, QID = None, None, None
 
@@ -150,11 +164,16 @@ if __name__ == "__main__":
             _list(ECPname, ECPport)
 
         elif input_data.startswith('request'):
-            # request - Topic NUm (Tnn) por TCP chama o TES respectivo
-            log.debug("Requesting information from ECP server about the TES server for that topic.")
-            topic_num = input_data.replace('request', '').strip()
 
-            TESip, TESport, QID = _request(ECPname, ECPport, topic_num, SID)
+            # request was already pressed,
+            if QID:
+                log.error("Please submit your answers first.(QID = {})".format(QID))
+            else:
+                # request - Topic NUm (Tnn) por TCP chama o TES respectivo
+                log.debug("Requesting information from ECP server about the TES server for that topic.")
+                topic_num = input_data.replace('request', '').strip()
+
+                TESip, TESport, QID = _request(ECPname, ECPport, topic_num, SID)
 
         elif input_data.startswith('submit'):
             # submit <answers_sequece> - TCP Tes resposta
@@ -163,6 +182,7 @@ if __name__ == "__main__":
 
             if TESip and TESport and QID:
                 _submit(TESip, TESport, SID, QID, answers)
+                TESip, TESport, QID = None, None, None
             else:
                 log.debug("No TESip or TESport.")
                 log.error("No TESip or TESport. Request first a topic and then submit your answers.")
@@ -171,6 +191,7 @@ if __name__ == "__main__":
             # exit - exit
             log.debug("Exiting user application.")
             break
+
         else:
             if input_data.strip() != '':
                 log.warning("\"{}\" command does not exist.".format(input_data))

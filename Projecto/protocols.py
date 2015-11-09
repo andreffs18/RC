@@ -3,6 +3,7 @@
 import os
 import sys
 import uuid
+import random
 import settings
 import datetime as date
 
@@ -35,6 +36,12 @@ class TCP(object):
             return message[:-1]
         return message
 
+    def _limit_amount(self, message):
+        '''
+        if data in msg is bigger than 60
+        '''
+        return message[:60]
+
     def request(self, data):
         '''
         makes tcp socket connection to host and port machine
@@ -44,15 +51,41 @@ class TCP(object):
         sock = socket(AF_INET, SOCK_STREAM)
         # Set the value of the given socket option (see the Unix manual page setsockopt(2)).
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-        # Connect to a remote socket at address.
-        sock.connect((self.host, self.port))
         try:
+            # Connect to a remote socket at address.
+            sock.connect((self.host, self.port))
+            # define timout to settings.TIMEOUT_DELAY
+            sock.settimeout(settings.TIMEOUT_DELAY)
             log.debug("[TCP] Sending request to {}:{} > \"{}\".".format(self.host, self.port, self._remove_new_line(data)))
             # Send data to the socket.
             sock.sendall(data)
             # Receive data from the socket (max amount is the buffer size).
             data = sock.recv(self.buffer_size)
-            log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(data)))
+            # F#$% this. hack this way throught. it's late and we need to finish this
+            # if by any means, the last char in received data is " " then we just
+            # repeat the procces and increase the timeout 3 times.
+            # otherwise we continue and don't repeat the process
+            if data[-1] >= " ":
+                sock.settimeout(settings.TIMEOUT_DELAY * 3)
+                log.debug("Final char in data from request is \" \".")
+                old_data = ""
+                while len(data) != len(old_data):
+                    old_data = data
+                    data += sock.recv(self.buffer_size)
+                log.debug("Downloaded content size is {} bytes.".format(len(data)))
+            log.debug("[TCP] Got back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
+        # in case of timeout
+        except timeout, msg:
+            if settings.SKIP_ON_FIRST:
+                log.debug("Downloaded content size is {} bytes.".format(len(data)))
+                pass
+            else:
+                log.error("Request Timeout.")
+                data = "ERR"
+        # in case of error
+        except error, msg:
+            log.error("Something happen when trying to connect to {}:{}.".format(self.host, self.port))
+            data = "ERR"
         finally:
             # Close socket connection
             sock.close()
@@ -91,10 +124,9 @@ class TCP(object):
                         if not handle_data:
                             # Create instance of ECPProtocols to handle all data
                             handle_data = TESProtocols()
-
                         data = handle_data.dispatch(data)
 
-                        log.debug("Sending back > \"{}\".".format(self._remove_new_line(data)))
+                        log.debug("Sending back > \"{}\".".format(self._remove_new_line(self._limit_amount(data))))
                         # Send data to the socket.
                         connection.sendall(data)
                     else:
@@ -134,6 +166,8 @@ class UDP(object):
         sock = socket(AF_INET, SOCK_DGRAM)
         # Set the value of the given socket option (see the Unix manual page setsockopt(2)).
         sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        # define timout to settings.TIMEOUT_DELAY
+        sock.settimeout(settings.TIMEOUT_DELAY)
         try:
             log.debug("[UDP] Sending request to {}:{} > \"{}\".".format(self.host, self.port, self._remove_new_line(data)))
             # Send data to the socket.
@@ -141,6 +175,14 @@ class UDP(object):
             # Receive data from the socket (max amount is the buffer size).
             data = sock.recv(self.buffer_size)
             log.debug("[UDP] Got back > \"{}\".".format(self._remove_new_line(data)))
+        # in case of timeout
+        except timeout, msg:
+            log.error("Request Timeout.")
+            data = 'ERR'
+        # in case of error
+        except error, msg:
+            log.error("Something happen when trying to connect to {}:{}.".format(self.host, self.port))
+            data = "ERR"
         finally:
             # Close socket connection
             sock.close()
@@ -172,7 +214,6 @@ class UDP(object):
             # Receive data from client (data, addr)
             data, addr = s.recvfrom(self.buffer_size)
             # Get connection HostIP and HostPORT
-            import pdb; pdb.set_trace()
             addr_ip, addr_port = addr
             if not data:
                 break
@@ -208,17 +249,17 @@ class TESProtocols(object):
         handled data
         '''
         # removes \n from string
-        data = data[:-1]
+        data = self.UDP._remove_new_line(data)
         # split data into chunks
         data = data.split(" ")
         # get protocol and rest of the data
         protocol = data[0]
         data = data[1:]
         # dispatch to correct method
-        if protocol == "RQS":
-            data = self._RQS(data)
-        elif protocol == "RQT":
+        if protocol == "RQT":
             data = self._RQT(data)
+        elif protocol == "RQS":
+            data = self._RQS(data)
         else:
             data = "ERR"
         # put back the \n
@@ -244,21 +285,21 @@ class TESProtocols(object):
             '''
             db = __get_fake_database()
             try:
-                return [(qid, topic, deadline) for qid, topic, deadline in db if quiz_name == qid][0]
+                return [(qid, topic_name, deadline) for qid, topic_name, deadline in db if quiz_name == qid][0]
             except IndexError:
                 log.error("No matches in fake db. Couldn't find entry with QID \"{}\".".format(quiz_name))
                 return [("", "", "")]
 
         def __get_topic_name(quiz_name):
-            _, Tn, _ = __db_find_quiz(quiz_name)
-            return "TnnQF{}.txt".format(Tn)
+            _, topic_name, _ = __db_find_quiz(quiz_name)
+            return "{}.pdf".format(topic_name)
 
         def __get_correct_answers(quiz_name):
             '''
             go to quiz_name file and get correct answeres
             '''
             topic_name = __get_topic_name(quiz_name)
-            filename = "{}A.txt".format(".".join(topic_name.split(".")[:-1]))
+            filename = "{}A.txt".format(topic_name.split(".")[0])
             try:
                 with open(settings.QUIZ_PATH + "/{}".format(filename), 'r') as cquiz:
                     content = cquiz.readlines()
@@ -277,7 +318,6 @@ class TESProtocols(object):
         try:
             # get sid and qid from data
             SID, QID = data[:2]
-
             # check deadline
             now = date.datetime.now()
             deadline = __get_deadline(QID)
@@ -298,17 +338,16 @@ class TESProtocols(object):
                 if s_ans == c_ans:
                     score += 20
 
-            import pdb; pdb.set_trace()
             # send score to ECP server
-            topic_name = __get_topic_name(QID)
-            data = self.UDP.request("IQR {} {} {} {}".format(SID, QID, topic_name, score))
+            topic_name = __get_topic_name(QID).replace(".pdf", "")
+            data = self.UDP.request("IQR {} {} {} {}\n".format(SID, QID, topic_name, score))
             # 2' handling response from request to ECP server
             # 2.1' error (ERR) - something unexpected happen
             if data.startswith('ERR'):
                 log.debug("ERR occur from UDP request to ECP.")
                 log.error("ERR - There was an error connecting to ECP server. Try again later.")
                 return "ERR"
-            # 2.3' return
+            # 2.2' return
             else:
                 log.debug("No errors connecting to ECP with UDP Protocol.")
                 data = data.split(' ')
@@ -327,37 +366,57 @@ class TESProtocols(object):
         questionnaires on the selected topic. The student ID
         is provided.
         '''
+        def __get_quiz_name():
+            files = []
+            for f in os.listdir(settings.QUIZ_PATH):
+                if os.path.isfile(os.path.join(settings.QUIZ_PATH,f)) and '.pdf' in f:
+                    files.append(f)
 
-        def __get_quiz(qnum):
+            ## outrosfiches ['TnnQF1.pdf', 'TnnQF1A.pdf']
+            ## remove all files tthat contains 'A'
+            files = [f for f in files if 'A' not in f]
+            quiz = random.choice(files)
+            return quiz
+
+        def __get_quiz(quiz_name):
             '''
             open file and return data form that quiz_file
             '''
-            filename = "TnnQF{}.txt".format(qnum)
-            with open(settings.QUIZ_PATH + "/{}".format(filename), 'r') as tfile:
+            # quiz_name = 'TnnQF1.txt'
+            with open(settings.QUIZ_PATH + "/{}".format(quiz_name), 'r') as tfile:
                 content = tfile.read()
             return content
+
+        def __get_data():
+            '''
+            returs data of file creation
+            '''
+            return date.datetime.now().strftime("%d%b%Y_%H:%M:%S").upper()
 
         def __get_deadline():
             '''
             just builds a datetime object and then parses it to the
             correct format DDMMMYYYY_HH:MM:SS
             '''
-            now = date.date.today()
-            hour, minute, second = settings.DEADLINE_HOUR, settings.DEADLINE_MINUTE, settings.DEADLINE_SECOND
-            deadline = date.datetime(now.year, now.month, now.day, hour, minute, second)
+            deadline = date.datetime.now() + date.timedelta(0, settings.DEADLINE_DELTA)
             return deadline.strftime("%d%b%Y_%H:%M:%S").upper()
 
         try:
             # get student ID, and Tnn
-            SID, Tn = data[0], data[1]
+            SID = data[0]
             # get quiz file data
-            quiz = __get_quiz(Tn)
+            quiz_name = __get_quiz_name()
+            quiz = __get_quiz(quiz_name)
             # generate random QID for this transaction
-            QID = "{}{}{}".format(uuid.uuid4().hex[:10], Tn, SID)
+            QID = "{}_{}".format(SID, __get_data())
             # generate deadline which will be in an hour
             deadline = __get_deadline()
             # size of the quiz
             size = len(quiz)
+            # save into db info about this quiz
+            log.debug("Saving info into db.")
+            with open(settings.FAKE_DATABASE, "a+") as db:
+                db.write("{} {} {}\n".format(QID, quiz_name, deadline))
 
             log.info("Quiz {} returned to student {}.".format(QID, SID))
             return "AQT {} {} {} {}".format(QID, deadline, size, quiz)
@@ -374,7 +433,7 @@ class ECPProtocols(object):
         '''
         inits udp instance
         '''
-        self.tcp = TCP(host, port)
+        self.TCP = TCP(host, port)
 
     def dispatch(self, data):
         '''
@@ -384,8 +443,7 @@ class ECPProtocols(object):
         handled data
         '''
         # removes \n from string
-        import pdb; pdb.set_trace()
-        data = data[:-1]
+        data = self.TCP._remove_new_line(data)
         # split data into chunks
         data = data.split(" ")
         # get protocol and rest of the data
@@ -472,14 +530,12 @@ class ECPProtocols(object):
         '''
         try:
             SID, QID, topic_name, score = data
-            import pdb; pdb.set_trace()
             # save this on STATS_FILE
-            with open(settings.STATS_FILE, 'w+') as sfile:
-                sfile.write("{} {} {} {}".format(SID, QID, topic_name, score))
+            with open(settings.STATS_FILE, 'a+') as sfile:
+                sfile.write("{} {} {} {}\n".format(SID, QID, topic_name, score))
             log.info("Saved info on student {} for quiz {}.".format(SID, QID))
             return "AWI {}".format(QID)
         except:
             log.error("There was a problem saving quiz infomation on ECP.")
             return "ERR"
-
 
